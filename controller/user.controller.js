@@ -17,12 +17,11 @@ const uploadUser = multer({ storage: userStorage });
 UserController.get("/", async (req, res) => {
   try {
     const _userResponse = await get();
-    console.log(_userResponse);
     if (_userResponse.length > 0) {
       res.status(200).send({
+        res: _userResponse,
         success: true,
         message: "user get successfully!",
-        res: _userResponse,
       });
     } else {
       res.status(401).send({
@@ -39,7 +38,6 @@ UserController.get("/", async (req, res) => {
 UserController.get("/:id", async (req, res) => {
   try {
     const _userResponse = await getdatabyid(req.params.id);
-    console.log(_userResponse);
     if (_userResponse.length > 0) {
       res.status(200).send({
         success: true,
@@ -80,8 +78,8 @@ UserController.delete("/:id", async (req, res) => {
   }
 });
 UserController.post("/", uploadUser.single("userImage"), async (req, res) => {
-  console.log(req.body, req.file.filename);
   const _userResponse = await save(req.body,req.file.filename);
+
   try {
     if (_userResponse) {
       res.status(200).send({
@@ -98,6 +96,7 @@ UserController.post("/", uploadUser.single("userImage"), async (req, res) => {
   }
 });
 UserController.post("/search", async (req, res) => {
+  
   console.log(req.body);
   const _userResponse = await searbyname(req.body);
   try {
@@ -115,10 +114,10 @@ UserController.post("/search", async (req, res) => {
     });
   }
 });
-UserController.patch("/:id", async (req, res) => {
+UserController.patch("/:id",uploadUser.single("userImage"),async (req, res) => {
     console.log(req.params.id,req.body)
     try {
-      const updatedata = await updaterecord(req.params.id,req.body);
+      const updatedata = await updaterecord(req.params.id,req.body,req?.file?.filename);
       console.log(updatedata)
       if (updaterecord) {
         res.status(200).send({
