@@ -21,7 +21,6 @@ const nodemail = async (req, res) => {
       console.log(error);
     } else {
       return res.json({ success: true, msg: "sent" });
-      //console.log('Email sent: ' + info.response);
     }
   });
 };

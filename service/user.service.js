@@ -3,21 +3,62 @@ const crypto = require("crypto-js");
 const fs = require("fs");
 
 const get = async () => {
-  const data = await userModel.find({});
-  if (data && data.length > 0) {
-    data.forEach((user) => {
-      if (user.password) {
-        var bytes = crypto.AES.decrypt(user.password, "secret key 123");
-        var originalText = bytes.toString(crypto.enc.Utf8);
-        user.password = originalText;
-      }
-    });
-  
-    return data;
-  } else {
-    // Handle the case when no data is found
-    return null; // or any other appropriate response
-  }
+  //const data= await userModel.find({}).populate("AddressId")
+
+  const data = await userModel.aggregate([
+    {
+      $lookup: {
+        from: "addresses",
+        localField: "AddressId",
+        foreignField: "_id",
+        as: "address_details",
+      },
+    },
+    {
+      $unwind: "$address_details", // Unwind the array created by $lookup
+    },
+    {
+      $project: {
+        name: 1,
+        email: 1,
+        age: 1,
+        "address_details.userfullAddress": 1,
+      },
+    },
+  ]);
+  //console.log(data,'data')
+  return data;
+  //pagination and becryp encrypt
+  // const pageSize = 5; // Number of documents per page
+  // const page = 1; // Page number you want to retrieve
+
+  // // Calculate the number of documents to skip based on the page size and current page
+  // const totalCount = await userModel.countDocuments({});
+
+  // // Calculate the total number of pages
+  // const totalPages = Math.ceil(totalCount / pageSize);
+  // const skip = (page - 1) * pageSize;
+
+  // const data = await userModel.find({}).skip(skip).limit(pageSize);
+  // if (data && data.length > 0) {
+  //   data.forEach((user) => {
+  //     if (user.password) {
+  //       var bytes = crypto.AES.decrypt(user.password, "secret key 123");
+  //       var originalText = bytes.toString(crypto.enc.Utf8);
+  //       user.password = originalText;
+  //     }
+  //   });
+  //   const proccessData =
+  //     {
+  //       data,
+  //       totalpages: totalPages,
+  //     }
+
+  //   return proccessData;
+  // } else {
+  //   // Handle the case when no data is found
+  //   return null; // or any other appropriate response
+  // }
   //find whose gender male using aggregate
   //return await userModel.aggregate([{$match:{gender:"male"}}]);
 
@@ -99,9 +140,36 @@ const get = async () => {
 };
 
 const searbyname = async (data) => {
-  console.log("service", data.searchbyname);
   return await userModel.aggregate([
     { $match: { name: { $regex: data.searchbyname, $options: "i" } } },
+  ]);
+};
+const userLogin = async (email) => {
+  //return await userModel.find({email:email})
+  return userModel.aggregate([
+    {
+      $match:{email:email}
+    },
+    {
+      $lookup: {
+        from: "addresses",
+        localField: "AddressId",
+        foreignField: "_id",
+        as: "address_details",
+      },
+    },
+    {
+      $unwind: "$address_details", // Unwind the array created by $lookup
+    },
+    {
+      $project: {
+        name: 1,
+        email: 1,
+        age: 1,
+        password:1,
+        "address_details.userfullAddress": 1,
+      },
+    },
   ]);
 };
 const save = async (data, filename) => {
@@ -109,10 +177,18 @@ const save = async (data, filename) => {
     data.password,
     "secret key 123"
   ).toString();
- // data.password = encryptedString;
-  const user = new userModel({ ...data, userImage: filename,password:encryptedString });
-  await user.save();
-  return user;
+
+  try {
+    const user = new userModel({
+      ...data,
+      userImage: filename,
+      password: encryptedString,
+    });
+    await user.save();
+    return user;
+  } catch (error) {
+    throw new Error(error.message);
+  }
 };
 const recorddelete = async (id) => {
   return await userModel.findByIdAndDelete(id);
@@ -124,9 +200,6 @@ const updaterecord = async (id, data, filename) => {
     if (!findbyid) {
       throw new Error("Record not found");
     }
-
-    console.log(findbyid, "findbyid");
-
     if (filename && filename !== undefined) {
       // Delete the old image file
       const filePath = "public/images/" + findbyid.userImage;
@@ -174,4 +247,5 @@ module.exports = {
   updaterecord,
   getdatabyid,
   searbyname,
+  userLogin,
 };
